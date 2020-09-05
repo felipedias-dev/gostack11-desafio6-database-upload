@@ -29,7 +29,7 @@ class ImportTransactionsService {
     const categories: string[] = [];
 
     parseCSV.on('data', async line => {
-      const [title, value, type, category] = line.map((cell: string) =>
+      const [title, type, value, category] = line.map((cell: string) =>
         cell.trim(),
       );
 
@@ -60,6 +60,23 @@ class ImportTransactionsService {
     );
 
     await categoriesRepository.save(newCategories);
+
+    const allCategories = [...newCategories, ...existentCategories];
+    const createdTransactions = transactionsRepository.create(
+      transactions.map(transaction => ({
+        title: transaction.title,
+        value: transaction.value,
+        type: transaction.type,
+        category: allCategories.find(
+          category => category.title === transaction.category,
+        ),
+      })),
+    );
+
+    await transactionsRepository.save(createdTransactions);
+    await fs.promises.unlink(csvFilePath);
+
+    return createdTransactions;
   }
 }
 
